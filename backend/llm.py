@@ -2,6 +2,7 @@ from enum import Enum
 from typing import Any, Awaitable, Callable, List, cast
 from anthropic import AsyncAnthropic
 from openai import AsyncOpenAI
+from openai import AsyncAzureOpenAI
 from openai.types.chat import ChatCompletionMessageParam, ChatCompletionChunk
 from config import IS_DEBUG_ENABLED
 from debug.DebugFileWriter import DebugFileWriter
@@ -35,12 +36,17 @@ async def stream_openai_response(
     base_url: str | None,
     callback: Callable[[str], Awaitable[None]],
     model: Llm,
+    azure_openai_api_version: str,
+    azure_openai_deployment: str,
 ) -> str:
-    client = AsyncOpenAI(api_key=api_key, base_url=base_url)
+    if azure_openai_api_version and azure_openai_deployment:
+        client = AsyncAzureOpenAI(api_key=api_key, azure_endpoint=base_url, api_version=azure_openai_api_version)
+    else:
+        client = AsyncOpenAI(api_key=api_key, base_url=base_url)
 
     # Base parameters
     params = {
-        "model": model.value,
+        "model": azure_openai_deployment or model.value,
         "messages": messages,
         "stream": True,
         "timeout": 600,
@@ -62,8 +68,10 @@ async def stream_openai_response(
         if chunk.choices and len(chunk.choices) > 0 and chunk.choices[0].delta and chunk.choices[0].delta.content:
             content = chunk.choices[0].delta.content or ""
             full_response += content
+            print(content, end="", flush=True)
             await callback(content)
 
+    print()
     await client.close()
 
     return full_response

@@ -105,7 +105,7 @@ async def stream_code(websocket: WebSocket):
         openai_api_key = params["openAiApiKey"]
         print("Using OpenAI API key from client-side settings dialog")
     else:
-        openai_api_key = os.environ.get("OPENAI_API_KEY")
+        openai_api_key = os.environ.get("OPENAI_API_KEY") or os.environ.get("AZURE_OPENAI_API_KEY")
         if openai_api_key:
             print("Using OpenAI API key from environment variable")
 
@@ -139,12 +139,15 @@ async def stream_code(websocket: WebSocket):
             openai_base_url = params["openAiBaseURL"]
             print("Using OpenAI Base URL from client-side settings dialog")
         else:
-            openai_base_url = os.environ.get("OPENAI_BASE_URL")
+            openai_base_url = os.environ.get("OPENAI_BASE_URL") or os.environ.get("AZURE_OPENAI_ENDPOINT")
             if openai_base_url:
                 print("Using OpenAI Base URL from environment variable")
 
     if not openai_base_url:
         print("Using official OpenAI URL")
+
+    azure_openai_api_version = os.environ.get("AZURE_OPENAI_API_VERSION")
+    azure_openai_deployment = os.environ.get("AZURE_OPENAI_DEPLOYMENT")
 
     # Get the image generation flag from the request. Fall back to True if not provided.
     should_generate_images = (
@@ -265,6 +268,8 @@ async def stream_code(websocket: WebSocket):
                     base_url=openai_base_url,
                     callback=lambda x: process_chunk(x),
                     model=code_generation_model,
+                    azure_openai_api_version=azure_openai_api_version,
+                    azure_openai_deployment=azure_openai_deployment,
                 )
                 exact_llm_version = code_generation_model
         except openai.AuthenticationError as e:
